@@ -147,7 +147,8 @@
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </ApplicationDefinition>
-    <Compile Include="Properties\ViewFile.cs" />
+    <Compile Include="HelperClass.cs" />
+    <Compile Include="ViewFile.cs" />
     <Page Include="MainWindow.xaml">
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>

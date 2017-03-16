@@ -1,13 +1,12 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Collections.ObjectModel;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace FileShufflerv2.Properties
+namespace FileShufflerv2
 {
-    class ViewFile
+    public class ViewFile
     {
         public string Extension { get; set; }
         public string SourceLocation { get; set; }
@@ -22,22 +21,12 @@ namespace FileShufflerv2.Properties
         public string NewFileName { get; set; }
         public string FolderName { get; set; }
         public string FileDescription { get; set; }
-
-
+        public int AmountOfSplits { get; set; }
 
 
         public ViewFile()
         {
 
-        }
-
-        public static ObservableCollection<ViewFile> _source = new ObservableCollection<ViewFile>();
-        public static ObservableCollection<ViewFile> ViewSource
-        {
-            get
-            {
-                return _source;
-            }
         }
     }
 }
