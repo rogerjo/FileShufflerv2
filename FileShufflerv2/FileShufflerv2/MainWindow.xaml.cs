@@ -13,6 +13,9 @@ using System.Windows.Media;
 using MahApps.Metro;
 using FileShufflerv2.Properties;
 using System.Threading.Tasks;
+using Microsoft.SharePoint.Client;
+using System.Net;
+using System.Security;
 
 namespace FileShufflerv2
 {
@@ -42,6 +45,10 @@ namespace FileShufflerv2
         }
 
         public static List<string> SearchDirs = new List<string>();
+
+        public string UserName { get; set; }
+        public SecureString Password { get; set; }
+
         public MainWindow()
         {
             InitializeComponent();
@@ -64,7 +71,7 @@ namespace FileShufflerv2
         {
             Accent currentAccent = ThemeManager.GetAccent(Settings.Default.ThemeColour);
             ThemeManager.ChangeAppStyle(Application.Current, currentAccent, ThemeManager.DetectAppStyle(Application.Current).Item1);
-            //LoginScreen();
+            LoginScreen();
 
         }
         private void AccentSelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -82,36 +89,7 @@ namespace FileShufflerv2
             }
         }
 
-        //private async void LoginScreen()
-        //{
-        //    try
-        //    {   //Create Login dialog
-        //        LoginDialogSettings ms = new LoginDialogSettings()
-        //        {
-        //            ColorScheme = MetroDialogColorScheme.Accented,
-        //            EnablePasswordPreview = true,
-        //            NegativeButtonVisibility = Visibility.Visible,
-        //            NegativeButtonText = "Cancel"
-        //        };
-        //        LoginDialogData ldata = await this.ShowLoginAsync("Login to Galaxis", "Enter your credentials", ms);
 
-        //        if (ldata == null)
-        //        {
-        //            Application.Current.Shutdown();
-        //        }
-        //        else
-        //        {
-        //            var result = await HelperClass.GalaxisLogin(ldata, SearchDirs);
-
-        //        }
-        //    }
-        //    catch (Exception)
-        //    {
-
-        //        throw;
-        //    }
-
-        //}
         private void DropBox_DragOver(object sender, DragEventArgs e)
         {
             BitmapImage green = new BitmapImage(new Uri("Resources/download.png", UriKind.Relative));
@@ -126,6 +104,7 @@ namespace FileShufflerv2
         }
         private async void DropBox_Drop(object sender, DragEventArgs e)
         {
+            //Making fileparameters available in ViewFile
             try
             {
                 dropimage.Visibility = Visibility.Hidden;
@@ -134,31 +113,25 @@ namespace FileShufflerv2
 
                 _source = await CalculateFileNames(DroppedFiles);
             }
-            catch (IndexOutOfRangeException)
-            {
-                ShowMessageBox("ERROR", "One or more files are not formatted correctly.");
-            }
-            myDataGrid.ItemsSource = ViewSource;
-
-            try
-            {
-                string[] SupplierArray = SearchDirs.ToArray();
-
-                await AssigningSuppliers(SupplierArray);
-                
-            }
             catch (Exception)
             {
-
                 ShowMessageBox("ERROR", "One or more files are not formatted correctly.");
-
             }
 
+            myDataGrid.ItemsSource = ViewSource;
 
+            //Assigning suppliers to items in the list
+            //try
+            //{
+            //    var assignedsuppliers = await CreatingSuppliersList(UserName, Password);
+            //}
+            //catch (Exception)
+            //{
+
+            //    ShowMessageBox("ERROR", "One or more files are not formatted correctly.");
+
+            //}
             MyProgressRing.IsActive = false;
-
-
-
             ShowMessageBox("ADDED", "Files have been added. Check the files and remember to press the button to send them.");
         }
 
@@ -173,17 +146,17 @@ namespace FileShufflerv2
         }
         private async void Send_button_Click(object sender, RoutedEventArgs e)
         {
-            var result = await Task.Run(() =>
+            try
             {
-                SendFilesToGalaxis();
-                return "Files sent";
-            });
+                //await SendFilesToGalaxis();
+            }
+            catch (Exception)
+            {
+
+                throw;
+            }
         }
 
-        private static void SendFilesToGalaxis()
-        {
-            throw new NotImplementedException();
-        }
 
         private void Helpbutton_Click(object sender, RoutedEventArgs e)
         {
@@ -206,6 +179,42 @@ namespace FileShufflerv2
             await this.ShowMessageAsync(v1, v2, MessageDialogStyle.Affirmative, ms);
         }
 
+        private async void LoginScreen()
+        {
+            try
+            {   //Create Login dialog
+                LoginDialogSettings ms = new LoginDialogSettings()
+                {
+                    ColorScheme = MetroDialogColorScheme.Accented,
+                    EnablePasswordPreview = true,
+                    NegativeButtonVisibility = Visibility.Visible,
+                    NegativeButtonText = "Cancel"
+                };
+                LoginDialogData ldata = await this.ShowLoginAsync("Login to Galaxis", "Enter your credentials", ms);
+
+                if (ldata == null)
+                {
+                    Application.Current.Shutdown();
+                }
+                else
+                {
+                    //var result = await GalaxisLogin(ldata, SearchDirs);
+                    Password = ldata.SecurePassword;
+                    UserName = ldata.Username;
+
+                }
+
+                var assignedsuppliers = await CreatingSuppliersList(UserName, Password);
+
+
+            }
+            catch (Exception)
+            {
+
+                throw;
+            }
+
+        }
         public async Task<ObservableCollection<ViewFile>> CalculateFileNames(string[] DroppedFiles)
         {
             try
@@ -311,10 +320,140 @@ namespace FileShufflerv2
 
         }
 
-        private async Task AssigningSuppliers(string[] supplierArray)
+        private async Task<List<string>> CreatingSuppliersList(string userName, SecureString password)
         {
-            throw new NotImplementedException();
+            try
+            {
+                //Creating Supplier list
+                var createSupplierListResult = await Task.Run(() =>
+                {
+                    List<string> Supplierlist = new List<string>();
+                    // ClientContext - Get the context for the SharePoint Online Site               
+                    using (ClientContext clientContext = new ClientContext("http://galaxis.axis.com/suppliers/Manufacturing/"))
+                    {
+                        // SharePoint Online Credentials    
+                        clientContext.Credentials = new NetworkCredential(userName, password, "AXISNET");
+
+                        // Get the SharePoint web  
+                        Web web = clientContext.Web;
+                        clientContext.Load(web, website => website.Webs, website => website.Title);
+
+                        // Execute the query to the server  
+                        clientContext.ExecuteQuery();
+
+                        // Loop through all the webs  
+                        foreach (Web subWeb in web.Webs)
+                        {
+                            if (subWeb.Title.Contains(" "))
+                            {
+                                subWeb.Title = subWeb.Title.Replace(" ", "_");
+                            }
+                            Supplierlist.Add(subWeb.Title.ToString());
+
+                        }
+
+                        Supplierlist.Remove(@"Manufacturing_Template_Site_0");
+                        Supplierlist.Remove(@"manufacturing_template1");
+                        Supplierlist.Remove(@"Junda_2");
+                        Supplierlist.Remove(@"Goodway_2");
+                        Supplierlist.Remove(@"Experimental2");
+
+                    }
+                    return Supplierlist;
+
+                });
+
+                return createSupplierListResult;
+            }
+            catch (Exception)
+            {
+                List<string> errorlist = new List<string>
+                {
+                    "Error"
+                };
+                return errorlist;
+            }
+
         }
+
+        //private static async Task AssigningSuppliers(string[] SupplierList)
+        //{
+        //    //Enumerating selected files towards supplierlist
+        //    var result = await Task.Run(() =>
+        //    {
+        //        string[] SupplierArray = SearchDirs.ToArray();
+
+
+        //    });
+        //}
+
+        public async Task<string> GalaxisLogin(LoginDialogData ldata, List<string> search)
+        {
+            var result = await Task.Run(() =>
+            {
+                using (ClientContext context = new ClientContext("http://galaxis.axis.com/"))
+                {
+                    context.Credentials = new NetworkCredential(ldata.Username, ldata.Password, "AXISNET");
+                    string LoginStatus = "";
+                    try
+                    {
+                        ClientContext clientContext = new ClientContext("http://galaxis.axis.com/suppliers/Manufacturing/");
+                        Web oWebsite = clientContext.Web;
+                        clientContext.Load(oWebsite, website => website.Webs, website => website.Title);
+                        clientContext.ExecuteQuery();
+                        foreach (Web orWebsite in oWebsite.Webs)
+                        {
+                            if (orWebsite.Title.Contains(" "))
+                            {
+                                orWebsite.Title = orWebsite.Title.Replace(" ", "_");
+                            }
+
+                            search.Add(orWebsite.Title);
+                        }
+
+                        //Remove directories that are not suppliers
+                        search.Remove(@"Manufacturing_Template_Site_0");
+                        search.Remove(@"manufacturing_template1");
+                        search.Remove(@"Junda 2");
+                        search.Remove(@"Goodway 2");
+                        search.Remove(@"Experimental2");
+
+
+                        for (int i = 0; i < search.Count; i++)
+                        {
+                            search[i] = @"\\galaxis.axis.com\suppliers\Manufacturing\" + search[i];
+                        }
+
+                        LoginStatus = "Login successful!";
+                        return LoginStatus;
+                    }
+                    catch (Exception e)
+                    {
+                        LoginStatus = "Login failed";
+                        return LoginStatus;
+                    }
+
+
+                }
+
+            });
+            return result;
+
+
+        }
+        //public async Task<string> SendFilesToGalaxis()
+        //{
+        //    var result = await Task.Run(() =>
+        //    {
+
+
+
+        //    });
+
+        //    return result;
+        //}
+
+
 
 
     }

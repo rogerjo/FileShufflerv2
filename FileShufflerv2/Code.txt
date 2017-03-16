@@ -1,0 +1,46 @@
+//Looping through all suppliersites
+                foreach (string location in SupplierArray)
+                {
+                    //Getting directories matching the filename
+                    string POLib = @"K:\" + location.Remove(0, 43) + @"\POLib\";
+
+                    POLib = POLib.Replace(" ", "_");
+                    POLib = POLib.Replace("ö", "o");
+
+                    IEnumerable<DirectoryInfo> foundDirectories = new DirectoryInfo(POLib).EnumerateDirectories(filename);
+
+                    bool haselements = foundDirectories.Any();
+                    if (haselements)
+                    {
+                        if (viewer.SiteFound == false)
+                        {
+                            viewer.CopySite = location;
+                            viewer.SiteFound = true;
+                            viewer.Supplier = location.Remove(0, 43);
+                            viewer.FolderName = (location + "\\POLib\\" + viewer.PartNo).Replace("\\", "/");
+                        }
+                        else
+                        {
+                            _source.Add(new ViewFile
+                            {
+                                Extension = infoFile.Extension.ToUpper(),
+                                FileSize = (infoFile.Length / 1024).ToString() + " kB",
+                                PartNo = infoFile.Name.Substring(0, 7),
+                                SourceLocation = filepath,
+                                FileName = infoFile.Name,
+                                CopySite = location,
+                                SiteFound = true,
+                                Version = names[1] + "." + names[2],
+                                Status = FileState,
+                                Supplier = location.Remove(0, 43),
+                                FolderName = (@"\\galaxis.axis.com\suppliers\Manufacturing\" + location.Remove(0, 4) + "\\POLib\\" + viewer.PartNo).Replace("\\", "/"),
+                                NewFileName = $"{viewer.PartNo}_{names[1]}_{names[2]}{viewer.Extension}"
+                            });
+
+                        }
+                    }
+                    if (viewer.Status == "Error")
+                    {
+                        viewer.SiteFound = false;
+                    }
+                }
