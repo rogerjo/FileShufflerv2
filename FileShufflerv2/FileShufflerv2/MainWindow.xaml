@@ -11,7 +11,7 @@
                       Height="500"
                       Width="900"
                       ShowMaxRestoreButton='False'
-                      ResizeMode='NoResize'
+                      ResizeMode='CanResizeWithGrip'
                       GlowBrush="{DynamicResource AccentColorBrush}"
                       WindowTransitionsEnabled="False"
                       WindowStartupLocation="CenterScreen">
@@ -42,76 +42,16 @@
         <Grid.RowDefinitions>
             <RowDefinition Height='54' />
             <RowDefinition Height="77*" />
-            <RowDefinition Height='13*' />
-            <RowDefinition Height="35" />
+            <RowDefinition Height='55' />
+            <RowDefinition Height="25" />
         </Grid.RowDefinitions>
 
-        <StatusBar Grid.Row="3"
-                   Height="35"
-                   VerticalAlignment="Bottom">
-
-            <StatusBarItem FontSize='13.333'
-                           HorizontalAlignment='Left'
-                           Width='692'>
-                <TextBlock x:Name="StatusIndicator"
-                           Width='444'
-                           Text='' />
-
-            </StatusBarItem>
-
-
-        </StatusBar>
-        <Button x:Name='clear_button'
-                Content='Clear Content'
-                Style="{StaticResource AccentedSquareButtonStyle}"
-                HorizontalAlignment='Left'
-                Margin='229,10,0,0'
-                Grid.Row='2'
-                VerticalAlignment='Top'
-                Width='115'
-                Click='Clear_button_Click'
-                Height='32' />
-        <Button x:Name='send_button'
-                Style="{StaticResource AccentedSquareButtonStyle}"
-                Content='Send to supplier sites'
-                Margin='493,10,229,0'
-                Grid.Row='2'
-                VerticalAlignment='Top'
-                Click='Send_button_Click'
-                Height='32' />
-
-        <Controls:ProgressRing x:Name='MyProgressRing'
-                               IsActive='False'
-                               HorizontalAlignment='Center'
-                               VerticalAlignment='Center'
-                               Height='100'
-                               Width='100'
-                               Grid.Row='1'
-                               Margin='296,102,296,106' />
-        <TextBlock TextWrapping="NoWrap"
-                   Text="drop your files below to add them"
-                   FontSize="24"
-                   RenderTransformOrigin="0.597,0.505"
-                   HorizontalAlignment="Left"
-                   Width="480"
-                   Margin="10,4,0,15"
-                   Grid.Row='0' />
-        <Button x:Name='button'
-                Content='help'
-                Style="{StaticResource AccentedSquareButtonStyle}"
-                HorizontalAlignment='Right'
-                Margin='607,13,10,10'
-                VerticalAlignment='Top'
-                Width='75'
-                Grid.Row='0'
-                Click='Helpbutton_Click' />
         <DataGrid x:Name='myDataGrid'
                   HorizontalAlignment='Left'
-                  Margin='10,10,0,0'
+                  
                   Grid.Row='1'
                   VerticalAlignment='Top'
-                  Height='302'
-                  Width='872'
+                  Visibility="Hidden"
                   AutoGenerateColumns='False'
                   AllowDrop='True'
                   Drop="DropBox_Drop"
@@ -120,7 +60,8 @@
                   FontSize="14"
                   Style='{StaticResource AzureDataGrid}'
                   CanUserAddRows="false"
-                  ItemsSource='{Binding ViewSource}'>
+                  ItemsSource='{Binding ViewSource}'
+                  Margin="10,10,10,0">
 
             <DataGrid.Columns>
 
@@ -150,7 +91,8 @@
                 <DataGridTextColumn Header='Status'
                                     Binding='{Binding Status, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}'
                                     Width='1*' />
-
+                <DataGridTextColumn Header="sourcelocation" Binding="{Binding SourceLocation}"
+                                    Visibility="Collapsed" />
                 <DataGridTemplateColumn  Header="Link"
                                          Width='0.8*'>
 
@@ -169,6 +111,76 @@
             </DataGrid.Columns>
 
         </DataGrid>
+
+        <StatusBar Grid.Row="3"
+                   Height="35"
+                   VerticalAlignment="Bottom">
+
+            <StatusBarItem FontSize='13.333'
+                           HorizontalAlignment='Left'
+                           Width='692'>
+                <TextBlock x:Name="StatusIndicator"
+                           Width='444'
+                           Text='' />
+
+            </StatusBarItem>
+
+
+        </StatusBar>
+        <Button x:Name='clear_button'
+                Content='Clear Content'
+                Style="{StaticResource AccentedSquareButtonStyle}"
+                HorizontalAlignment='Left'                
+                Grid.Row='2'
+                VerticalAlignment='Center'
+                Width='115'
+                Click='Clear_button_Click'
+                Height='32'
+                MinWidth="120"
+                MaxWidth="120"
+                MaxHeight="25"
+                MinHeight="32"
+                Margin="30,0,0,0" />
+        <Button x:Name='send_button'
+                Style="{StaticResource AccentedSquareButtonStyle}"
+                Content='Send to supplier sites'                
+                Grid.Row='2'
+                VerticalAlignment='Center'
+                Click='Send_button_Click'
+                HorizontalAlignment="Right"
+                Height='32'
+                MinWidth="200"
+                MaxWidth="200"
+                MaxHeight="25"
+                MinHeight="32"
+                Margin="0,0,30,0" />
+
+        <Controls:ProgressRing x:Name='MyProgressRing'
+                               IsActive='False'
+                               HorizontalAlignment='Center'
+                               VerticalAlignment='Center'
+                               Height='100'
+                               Width='100'
+                               Grid.Row='1'
+                               Margin='296,102,296,106'
+                               Visibility="Collapsed" />
+        <TextBlock TextWrapping="NoWrap"
+                   Text="drop your files below to add them"
+                   FontSize="24"
+                   RenderTransformOrigin="0.597,0.505"
+                   HorizontalAlignment="Left"
+                   Width="480"
+                   Margin="10,4,0,15"
+                   Grid.Row='0' />
+        <Button x:Name='button'
+                Content='help'
+                Style="{StaticResource AccentedSquareButtonStyle}"
+                HorizontalAlignment='Right'
+                Margin='607,13,10,10'
+                VerticalAlignment='Top'
+                Width='75'
+                Grid.Row='0'
+                Click='Helpbutton_Click' />
 
         <Image x:Name='dropimage'
                HorizontalAlignment='Center'

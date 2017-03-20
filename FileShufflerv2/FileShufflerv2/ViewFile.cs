@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -22,11 +23,16 @@ namespace FileShufflerv2
         public string FolderName { get; set; }
         public string FileDescription { get; set; }
         public int AmountOfSplits { get; set; }
-
+        public FileInfo FileInformation { get; set; }
 
         public ViewFile()
         {
 
+        }
+
+        public ViewFile(string Filepath)
+        {
+            FileInformation = new FileInfo(Filepath);
         }
     }
 }

@@ -17,6 +17,7 @@ using Microsoft.SharePoint.Client;
 using System.Net;
 using System.Security;
 
+
 namespace FileShufflerv2
 {
     /// <summary>
@@ -43,8 +44,8 @@ namespace FileShufflerv2
                 return _source;
             }
         }
-
         public static List<string> SearchDirs = new List<string>();
+        public static List<string> DocuSetsList = new List<string>();
 
         public string UserName { get; set; }
         public SecureString Password { get; set; }
@@ -109,6 +110,9 @@ namespace FileShufflerv2
             {
                 dropimage.Visibility = Visibility.Hidden;
                 MyProgressRing.IsActive = true;
+                MyProgressRing.Visibility = Visibility.Visible;
+                myDataGrid.Visibility = Visibility.Visible;
+
                 string[] DroppedFiles = (string[])e.Data.GetData(DataFormats.FileDrop);
 
                 _source = await CalculateFileNames(DroppedFiles);
@@ -132,6 +136,7 @@ namespace FileShufflerv2
 
             //}
             MyProgressRing.IsActive = false;
+            MyProgressRing.Visibility = Visibility.Collapsed;
             ShowMessageBox("ADDED", "Files have been added. Check the files and remember to press the button to send them.");
         }
 
@@ -181,15 +186,16 @@ namespace FileShufflerv2
 
         private async void LoginScreen()
         {
+            LoginDialogSettings ms = new LoginDialogSettings()
+            {
+                ColorScheme = MetroDialogColorScheme.Accented,
+                EnablePasswordPreview = true,
+                NegativeButtonVisibility = Visibility.Visible,
+                NegativeButtonText = "Cancel"
+            };
+
             try
             {   //Create Login dialog
-                LoginDialogSettings ms = new LoginDialogSettings()
-                {
-                    ColorScheme = MetroDialogColorScheme.Accented,
-                    EnablePasswordPreview = true,
-                    NegativeButtonVisibility = Visibility.Visible,
-                    NegativeButtonText = "Cancel"
-                };
                 LoginDialogData ldata = await this.ShowLoginAsync("Login to Galaxis", "Enter your credentials", ms);
 
                 if (ldata == null)
@@ -203,15 +209,14 @@ namespace FileShufflerv2
                     UserName = ldata.Username;
 
                 }
-
+                //Create a list of suppliers from Galaxis
                 var assignedsuppliers = await CreatingSuppliersList(UserName, Password);
 
 
             }
             catch (Exception)
             {
-
-                throw;
+                ShowMessageBox("ERROR","Login failed");
             }
 
         }
@@ -222,34 +227,43 @@ namespace FileShufflerv2
                 var resultato = await Task.Run(() =>
                 {
                     ObservableCollection<ViewFile> tempList = new ObservableCollection<ViewFile>();
-
                     foreach (string filepath in DroppedFiles)
                     {
                         //Creating FileInfo object of path
-                        ViewFile item = new ViewFile();
-                        FileInfo infoFile = new FileInfo(filepath);
+                        ViewFile item = new ViewFile(filepath);
 
-                        string[] names = infoFile.Name.Split(new Char[] { '_', '.' });
+                        string[] names = item.FileInformation.Name.Split(new Char[] { '_', '.' });
 
                         item.PartNo = names[0];
-                        item.FileSize = (infoFile.Length / 1024).ToString() + " kB";
+                        item.FileSize = (item.FileInformation.Length / 1024).ToString() + " kB";
 
-                        if (infoFile.Extension == ".PDF" | infoFile.Extension == ".pdf")
+                        //Extension is PDF = Drawing and Version info
+                        if (item.FileInformation.Extension == ".PDF" | item.FileInformation.Extension == ".pdf")
                         {
+                            if (names.Length == 5)
+                            {
+                                item.AmountOfSplits = 3;
+                                item.FileDescription = "Drawing";
+                            }
+                            else if (names.Length == 6)
+                            {
+                                item.AmountOfSplits = 4;
+                                item.FileDescription = "Deco Spec";
+                            }
+                            item.Version = names[1] + "." + names[2];
                             item.Extension = ".PDF";
                         }
-
-                        if (names.Length == 5)
+                        //Extension is STP = 3D Data and Version info
+                        else
                         {
                             item.AmountOfSplits = 3;
-                            item.FileDescription = "Drawing";
-                        }
-                        else if (names.Length == 6)
-                        {
-                            item.AmountOfSplits = 4;
-                            item.FileDescription = "Deco Spec";
+                            item.FileDescription = "3D Data";
+                            item.Extension = ".STP";
+                            item.Version = names[1] + "." + names[2];
                         }
 
+
+                        //Setting Status field 
                         if (names.Length != 5 && names.Length != 6)
                         {
                             item.Status = "Error";
@@ -278,12 +292,10 @@ namespace FileShufflerv2
                                     break;
                             }
 
-                        //Add the newFilename property
-                        //if (viewer.Extension == ".PDF" & Description == "Deco Spec")
-                        //{
-                        //    viewer.NewFileName = viewer.NewFileName = $"{viewer.PartNo}_deco{viewer.Extension}";
-                        //}
-                        if (infoFile.Extension == ".PDF" & item.FileDescription == "Deco Spec")
+
+
+
+                        if (item.FileInformation.Extension == ".PDF" & item.FileDescription == "Deco Spec")
                         {
                             item.FileName = $"{names[0]}D_{names[1]}_{names[2]}{names[names.Length]}";
                         }
@@ -292,11 +304,6 @@ namespace FileShufflerv2
                             item.FileName = $"{names[0]}D_{names[1]}_{names[2]}{item.Extension}";
                         }
 
-                        //else if (viewer.Extension == ".PDF")
-                        //{
-                        //    viewer.NewFileName = viewer.NewFileName = $"{viewer.PartNo}D_{names[1]}_{names[2]}{viewer.Extension}";
-
-                        //}
                         tempList.Add(item);
                     }
                     return tempList;
@@ -311,12 +318,6 @@ namespace FileShufflerv2
                 ObservableCollection<ViewFile> errorList = new ObservableCollection<ViewFile>();
                 return errorList;
             }
-
-
-
-
-
-
 
         }
 
@@ -376,19 +377,10 @@ namespace FileShufflerv2
 
         }
 
-        //private static async Task AssigningSuppliers(string[] SupplierList)
-        //{
-        //    //Enumerating selected files towards supplierlist
-        //    var result = await Task.Run(() =>
-        //    {
-        //        string[] SupplierArray = SearchDirs.ToArray();
-
-
-        //    });
-        //}
 
         public async Task<string> GalaxisLogin(LoginDialogData ldata, List<string> search)
         {
+            myDataGrid.IsEnabled = false;
             var result = await Task.Run(() =>
             {
                 using (ClientContext context = new ClientContext("http://galaxis.axis.com/"))
@@ -437,21 +429,13 @@ namespace FileShufflerv2
                 }
 
             });
+            myDataGrid.IsEnabled = true;
             return result;
 
 
+
         }
-        //public async Task<string> SendFilesToGalaxis()
-        //{
-        //    var result = await Task.Run(() =>
-        //    {
 
-
-
-        //    });
-
-        //    return result;
-        //}
 
 
 
