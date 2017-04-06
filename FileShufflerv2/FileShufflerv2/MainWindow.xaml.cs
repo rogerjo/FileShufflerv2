@@ -68,11 +68,16 @@ namespace FileShufflerv2
 
         }
 
-        private void MainWindow_Loaded(object sender, RoutedEventArgs e)
+        private async void MainWindow_Loaded(object sender, RoutedEventArgs e)
         {
             Accent currentAccent = ThemeManager.GetAccent(Settings.Default.ThemeColour);
             ThemeManager.ChangeAppStyle(Application.Current, currentAccent, ThemeManager.DetectAppStyle(Application.Current).Item1);
-            LoginScreen();
+
+            //Creating Loginscreen and testing
+            var loginresult = await LoginScreen();
+
+            //Create a list of suppliers from Galaxis
+            SearchDirs = await CreatingSuppliersListAsync(UserName, Password);
 
         }
         private void AccentSelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -89,7 +94,6 @@ namespace FileShufflerv2
                 Application.Current.MainWindow.Activate();
             }
         }
-
 
         private void DropBox_DragOver(object sender, DragEventArgs e)
         {
@@ -114,8 +118,8 @@ namespace FileShufflerv2
                 myDataGrid.Visibility = Visibility.Visible;
 
                 string[] DroppedFiles = (string[])e.Data.GetData(DataFormats.FileDrop);
+                _source = await CalculateFileNamesAsync(DroppedFiles);
 
-                _source = await CalculateFileNames(DroppedFiles);
             }
             catch (Exception)
             {
@@ -125,22 +129,48 @@ namespace FileShufflerv2
             myDataGrid.ItemsSource = ViewSource;
 
             //Assigning suppliers to items in the list
-            //try
-            //{
-            //    var assignedsuppliers = await CreatingSuppliersList(UserName, Password);
-            //}
-            //catch (Exception)
-            //{
+            try
+            {
+                //Iterating through all DocuSets on all Supplier Sites  
+                
+                await CreateDocuSetsListAsync(SearchDirs);
+            }
+            catch (Exception)
+            {
+                ShowMessageBox("ERROR", "One or more files are not formatted correctly.");
+            }
 
-            //    ShowMessageBox("ERROR", "One or more files are not formatted correctly.");
+            //Starting to assign paths to Viewfiles
+            AssignPathsToItems();
 
-            //}
             MyProgressRing.IsActive = false;
             MyProgressRing.Visibility = Visibility.Collapsed;
-            ShowMessageBox("ADDED", "Files have been added. Check the files and remember to press the button to send them.");
+            //ShowMessageBox("ADDED", "Files have been added. Check the files and remember to press the button to send them.");
         }
+        private void AssignPathsToItems()
+        {
+            //string[] SupplierArray = DocuSetsList.ToArray();
+
+            foreach (var item in _source)
+            {
+                //if (DocuSetsList.Any(str => str.Contains(item.PartNo)))
+                //{
+                //    ShowMessageBox("Yes", "Success");
+                //}
+                foreach (string PO in DocuSetsList)
+                {
+                    if (PO.Contains(item.PartNo))
+                    {
+                        item.SiteFound = true;
+                        item.Supplier = "Bertil";
+                        item.FolderName = PO;
+                    }
+                }
+
+            }
 
 
+        }
         private void Clear_button_Click(object sender, RoutedEventArgs e)
         {
             BitmapImage grey = new BitmapImage(new Uri("Resources/download_grey.png", UriKind.Relative));
@@ -153,7 +183,12 @@ namespace FileShufflerv2
         {
             try
             {
-                //await SendFilesToGalaxis();
+                var result = await SendFilesToGalaxis();
+                if (result)
+                {
+                    ShowMessageBox("Success", "Files uploaded correctly");
+                }
+
             }
             catch (Exception)
             {
@@ -161,8 +196,21 @@ namespace FileShufflerv2
                 throw;
             }
         }
-
-
+        private async Task<bool> SendFilesToGalaxis()
+        {
+            try
+            {
+                var sendresult = await Task.Run(() =>
+                {
+                    return true;
+                });
+                return true;
+            }
+            catch (Exception)
+            {
+                return false;
+            }
+        }
         private void Helpbutton_Click(object sender, RoutedEventArgs e)
         {
             string target = @"\\Storage03\hw-apps\ptc\fileshuffler\helpfiles\helpfile.html";
@@ -183,8 +231,7 @@ namespace FileShufflerv2
             };
             await this.ShowMessageAsync(v1, v2, MessageDialogStyle.Affirmative, ms);
         }
-
-        private async void LoginScreen()
+        private async Task<bool> LoginScreen()
         {
             LoginDialogSettings ms = new LoginDialogSettings()
             {
@@ -193,7 +240,6 @@ namespace FileShufflerv2
                 NegativeButtonVisibility = Visibility.Visible,
                 NegativeButtonText = "Cancel"
             };
-
             try
             {   //Create Login dialog
                 LoginDialogData ldata = await this.ShowLoginAsync("Login to Galaxis", "Enter your credentials", ms);
@@ -204,29 +250,106 @@ namespace FileShufflerv2
                 }
                 else
                 {
-                    //var result = await GalaxisLogin(ldata, SearchDirs);
                     Password = ldata.SecurePassword;
                     UserName = ldata.Username;
-
                 }
-                //Create a list of suppliers from Galaxis
-                var assignedsuppliers = await CreatingSuppliersList(UserName, Password);
 
+                using (ClientContext ctx = new ClientContext("http://galaxis.axis.com/suppliers/Manufacturing/"))
+                {
 
+                    // SharePoint Online Credentials    
+                    ctx.Credentials = new NetworkCredential(UserName, Password, "AXISNET");
+
+                    // Get the SharePoint web  
+                    Web web = ctx.Web;
+                    ctx.Load(web, website => website.Webs, website => website.Title);
+                    try
+                    {
+                        // Execute the query to the server  
+                        ctx.ExecuteQuery();
+                        return true;
+                    }
+                    catch (Exception)
+                    {
+                        MetroDialogSettings ff = new MetroDialogSettings()
+                        {
+                            ColorScheme = MetroDialogColorScheme.Accented
+                        };
+                        await this.ShowMessageAsync("LOGIN INCORRECT:", "Application will close down", MessageDialogStyle.Affirmative, ff);
+
+                        Application.Current.Shutdown();
+                        return false;
+                    }
+                }
             }
             catch (Exception)
             {
-                ShowMessageBox("ERROR","Login failed");
+                return false;
             }
 
         }
-        public async Task<ObservableCollection<ViewFile>> CalculateFileNames(string[] DroppedFiles)
+        private async Task<bool> CreateDocuSetsListAsync(List<string> _searchdirs)
+
+        {
+            MetroDialogSettings ms = new MetroDialogSettings()
+            {
+                ColorScheme = MetroDialogColorScheme.Accented
+            };
+            var controller = await this.ShowProgressAsync("Please wait...", "Searching all Supplier Sites for you!", false, ms);
+
+            controller.Maximum = _searchdirs.Count;
+            controller.Minimum = 0;
+
+            var result = await Task.Run(() =>
+            {
+                //List<string> ResultList = new List<string>();
+                int counter = 0;
+                foreach (string location in _searchdirs)
+                {
+                    string searchSite = $"http://galaxis.axis.com/suppliers/Manufacturing/{location}/";
+                    counter++;
+
+                    controller.SetProgress((double)counter);
+
+                    using (ClientContext ctx = new ClientContext(searchSite))
+                    {
+                        var POlist = ctx.Web.Lists.GetByTitle("Part Overview Library");
+
+                        var query = new CamlQuery()
+                        {
+                            //Query for all NewDocuSets in Part Overview Library
+                            ViewXml = @"<View><Query><Where><Eq><FieldRef Name='ContentTypeId'/><Value Type='Text'>0x0120D520005FF5F128F273FA40A49E7863E8A599C6005CFA6F34D39D6A4586AFCE307190091E</Value></Eq></Where></Query></View>"
+                        };
+
+                        var POListItems = POlist.GetItems(query);
+
+
+                        //ctx.Load(POListItems);
+
+                        ctx.Load(POListItems, li => li.Include(i => i["FileRef"]));
+                        ctx.ExecuteQuery();
+
+                        foreach (ListItem item in POListItems)
+                        {
+                            string o = item["FileRef"].ToString();
+                            DocuSetsList.Add(o);
+                        }
+                    }
+                }
+                return true;
+            });
+
+            await controller.CloseAsync();
+            return true;
+        }
+        private async Task<ObservableCollection<ViewFile>> CalculateFileNamesAsync(string[] DroppedFiles)
         {
             try
             {
                 var resultato = await Task.Run(() =>
                 {
-                    ObservableCollection<ViewFile> tempList = new ObservableCollection<ViewFile>();
+                    ObservableCollection<ViewFile> templist = new ObservableCollection<ViewFile>();
+
                     foreach (string filepath in DroppedFiles)
                     {
                         //Creating FileInfo object of path
@@ -292,9 +415,6 @@ namespace FileShufflerv2
                                     break;
                             }
 
-
-
-
                         if (item.FileInformation.Extension == ".PDF" & item.FileDescription == "Deco Spec")
                         {
                             item.FileName = $"{names[0]}D_{names[1]}_{names[2]}{names[names.Length]}";
@@ -304,9 +424,9 @@ namespace FileShufflerv2
                             item.FileName = $"{names[0]}D_{names[1]}_{names[2]}{item.Extension}";
                         }
 
-                        tempList.Add(item);
+                        templist.Add(item);
                     }
-                    return tempList;
+                    return templist;
 
                 });
 
@@ -315,32 +435,44 @@ namespace FileShufflerv2
             }
             catch (Exception)
             {
-                ObservableCollection<ViewFile> errorList = new ObservableCollection<ViewFile>();
-                return errorList;
+                return new ObservableCollection<ViewFile>();
             }
 
         }
-
-        private async Task<List<string>> CreatingSuppliersList(string userName, SecureString password)
+        private async Task<List<string>> CreatingSuppliersListAsync(string userName, SecureString password)
         {
             try
             {
                 //Creating Supplier list
-                var createSupplierListResult = await Task.Run(() =>
+                var createSupplierListResult = await Task.Run(async () =>
                 {
                     List<string> Supplierlist = new List<string>();
                     // ClientContext - Get the context for the SharePoint Online Site               
                     using (ClientContext clientContext = new ClientContext("http://galaxis.axis.com/suppliers/Manufacturing/"))
                     {
+
                         // SharePoint Online Credentials    
                         clientContext.Credentials = new NetworkCredential(userName, password, "AXISNET");
 
                         // Get the SharePoint web  
                         Web web = clientContext.Web;
                         clientContext.Load(web, website => website.Webs, website => website.Title);
+                        try
+                        {
+                            // Execute the query to the server  
+                            clientContext.ExecuteQuery();
 
-                        // Execute the query to the server  
-                        clientContext.ExecuteQuery();
+                        }
+                        catch (Exception)
+                        {
+                            MetroDialogSettings ms = new MetroDialogSettings()
+                            {
+                                ColorScheme = MetroDialogColorScheme.Accented
+                            };
+                            await this.ShowMessageAsync("ERROR:", "Login incorrect", MessageDialogStyle.Affirmative, ms);
+
+                            Application.Current.Shutdown();
+                        }
 
                         // Loop through all the webs  
                         foreach (Web subWeb in web.Webs)
@@ -348,6 +480,18 @@ namespace FileShufflerv2
                             if (subWeb.Title.Contains(" "))
                             {
                                 subWeb.Title = subWeb.Title.Replace(" ", "_");
+                            }
+                            if (subWeb.Title.Contains("å"))
+                            {
+                                subWeb.Title = subWeb.Title.Replace("å", "a");
+                            }
+                            if (subWeb.Title.Contains("ä"))
+                            {
+                                subWeb.Title = subWeb.Title.Replace("ä", "a");
+                            }
+                            if (subWeb.Title.Contains("ö"))
+                            {
+                                subWeb.Title = subWeb.Title.Replace("ö", "o");
                             }
                             Supplierlist.Add(subWeb.Title.ToString());
 
@@ -376,69 +520,5 @@ namespace FileShufflerv2
             }
 
         }
-
-
-        public async Task<string> GalaxisLogin(LoginDialogData ldata, List<string> search)
-        {
-            myDataGrid.IsEnabled = false;
-            var result = await Task.Run(() =>
-            {
-                using (ClientContext context = new ClientContext("http://galaxis.axis.com/"))
-                {
-                    context.Credentials = new NetworkCredential(ldata.Username, ldata.Password, "AXISNET");
-                    string LoginStatus = "";
-                    try
-                    {
-                        ClientContext clientContext = new ClientContext("http://galaxis.axis.com/suppliers/Manufacturing/");
-                        Web oWebsite = clientContext.Web;
-                        clientContext.Load(oWebsite, website => website.Webs, website => website.Title);
-                        clientContext.ExecuteQuery();
-                        foreach (Web orWebsite in oWebsite.Webs)
-                        {
-                            if (orWebsite.Title.Contains(" "))
-                            {
-                                orWebsite.Title = orWebsite.Title.Replace(" ", "_");
-                            }
-
-                            search.Add(orWebsite.Title);
-                        }
-
-                        //Remove directories that are not suppliers
-                        search.Remove(@"Manufacturing_Template_Site_0");
-                        search.Remove(@"manufacturing_template1");
-                        search.Remove(@"Junda 2");
-                        search.Remove(@"Goodway 2");
-                        search.Remove(@"Experimental2");
-
-
-                        for (int i = 0; i < search.Count; i++)
-                        {
-                            search[i] = @"\\galaxis.axis.com\suppliers\Manufacturing\" + search[i];
-                        }
-
-                        LoginStatus = "Login successful!";
-                        return LoginStatus;
-                    }
-                    catch (Exception e)
-                    {
-                        LoginStatus = "Login failed";
-                        return LoginStatus;
-                    }
-
-
-                }
-
-            });
-            myDataGrid.IsEnabled = true;
-            return result;
-
-
-
-        }
-
-
-
-
-
     }
 }

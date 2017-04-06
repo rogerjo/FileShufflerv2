@@ -37,7 +37,26 @@
             </StackPanel>
         </Controls:WindowCommands>
     </Controls:MetroWindow.RightWindowCommands>
-    <Grid Margin="0,0,0,0">
+    <Window.Resources>
+        <Style TargetType="{x:Type DataGridColumnHeader}">
+            <Setter Property="Background">
+                <Setter.Value>
+                    <SolidColorBrush Color="#FFE8E2D8" />
+                </Setter.Value>
+            </Setter>
+            <Setter Property="FontSize"
+                    Value="16" />
+            <Setter Property="FontWeight"
+                    Value="DemiBold" />
+        </Style>
+    </Window.Resources>
+
+    <Grid Margin="0,0,0,0"
+          AllowDrop="True"
+          DragLeave="DropBox_DragLeave"
+          DragOver="DropBox_DragOver"
+          Drop="DropBox_Drop"
+          Background="#FFE8E2D8">
 
         <Grid.RowDefinitions>
             <RowDefinition Height='54' />
@@ -48,7 +67,6 @@
 
         <DataGrid x:Name='myDataGrid'
                   HorizontalAlignment='Left'
-                  
                   Grid.Row='1'
                   VerticalAlignment='Top'
                   Visibility="Hidden"
@@ -61,7 +79,8 @@
                   Style='{StaticResource AzureDataGrid}'
                   CanUserAddRows="false"
                   ItemsSource='{Binding ViewSource}'
-                  Margin="10,10,10,0">
+                  Margin="10,10,10,0"
+                  Background="#FFE8E2D8">
 
             <DataGrid.Columns>
 
@@ -91,7 +110,8 @@
                 <DataGridTextColumn Header='Status'
                                     Binding='{Binding Status, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}'
                                     Width='1*' />
-                <DataGridTextColumn Header="sourcelocation" Binding="{Binding SourceLocation}"
+                <DataGridTextColumn Header="sourcelocation"
+                                    Binding="{Binding SourceLocation}"
                                     Visibility="Collapsed" />
                 <DataGridTemplateColumn  Header="Link"
                                          Width='0.8*'>
@@ -130,7 +150,7 @@
         <Button x:Name='clear_button'
                 Content='Clear Content'
                 Style="{StaticResource AccentedSquareButtonStyle}"
-                HorizontalAlignment='Left'                
+                HorizontalAlignment='Left'
                 Grid.Row='2'
                 VerticalAlignment='Center'
                 Width='115'
@@ -143,7 +163,7 @@
                 Margin="30,0,0,0" />
         <Button x:Name='send_button'
                 Style="{StaticResource AccentedSquareButtonStyle}"
-                Content='Send to supplier sites'                
+                Content='Send to supplier sites'
                 Grid.Row='2'
                 VerticalAlignment='Center'
                 Click='Send_button_Click'
